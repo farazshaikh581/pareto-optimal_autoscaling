@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: factorizator-sa
+  namespace: factorizator
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: factorizator-role
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services", "namespaces"]
+  verbs: ["get", "list", "watch", "create", "delete"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "watch", "patch", "update"]
+- apiGroups: ["autoscaling"]
+  resources: ["horizontalpodautoscalers"]
+  verbs: ["get", "list", "watch", "patch", "update", "create"]
+- apiGroups: ["metrics.k8s.io"]
+  resources: ["*"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: factorizator-rolebinding
+subjects:
+- kind: ServiceAccount
+  name: factorizator-sa
+  namespace: factorizator
+roleRef:
+  kind: ClusterRole
+  name: factorizator-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: factorizator
+  name: factorizator-local-role
+rules:
+- apiGroups: ["", "apps", "autoscaling"]
+  resources: ["deployments", "pods", "horizontalpodautoscalers"]
+  verbs: ["get", "list", "patch", "watch", "create", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: factorizator-local-rolebinding
+  namespace: factorizator
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: factorizator
+roleRef:
+  kind: Role
+  name: factorizator-local-role
+  apiGroup: rbac.authorization.k8s.io

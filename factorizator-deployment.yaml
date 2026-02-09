@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: factorizator
+  namespace: factorizator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: factorizator
+  template:
+    metadata:
+      labels:
+        app: factorizator
+    spec:
+      containers:
+      - name: factorizator
+        image: farazshaikh581/factorizator:v1
+        # ---------------
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "256Mi"
