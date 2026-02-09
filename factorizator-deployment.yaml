@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: factorizator
-        image: farazshaikh581/factorizator:v1
+        image: YourDockerImageID
         # ---------------
         ports:
         - containerPort: 8080
