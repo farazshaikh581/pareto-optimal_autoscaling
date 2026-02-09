@@ -1,2 +1,8 @@
 # pareto-optimal_autoscaling
 Implementation of the NOMS paper: "Pareto-Optimal Autoscaling: A Multi-Objective Reinforcement Learning Framework for the Performance-Cost-Energy Trilemma".
+
+
+
+**Abstract**
+
+Cloud-native systems, especially on serverless edge platforms, face significant operational complexity in balancing the competing objectives of application performance, operational cost, and energy consumption. This performance-cost-energy trilemma cannot be solved by traditional, single-objective autoscalers. This paper proposes a Multi-Objective Reinforcement Learning (MORL) framework based on Proximal Policy Optimization (PPO) along with a Transformer-based policy network to model long-range temporal dependencies for proactive scaling. Using a weighted-sum reward function, we train four distinct agents with reward vectors prioritizing performance, cost, energy, and a balanced approach, respectively. The experimental results, based on a realistic web-service workload, demonstrate that the framework successfully generates a set of different, non-dominated policies forming a Pareto-optimal front. We show that the  agent focused on performance learns an aggressive scaling policy minimizing latency at the expense of modest resource use, while those focused on cost and energy converge to a similar, resource-minimal strategy. This convergence reveals a high correlation between cost and energy objectives within our system. The \textit{balanced} agent successfully identifies a stable compromise policy. This MORL approach provides cloud operators with a 'menu' of optimal, pre-trained policies, enabling dynamic selection to align with changing business or sustainability goals.
