@@ -45,10 +45,10 @@ app_env = "factorizator"
 NAMESPACE = "factorizator"
 
 # Prometheus (MicroK8s observability stack)
-PROMETHEUS_URL = "http://kube-prom-stack-prometheus.observability.svc.cluster.local:9090"
+PROMETHEUS_URL = "add the prometheus endpoint here"
 
 # Service endpoint (NodePort reachable from master)
-url_app_service = "http://192.168.122.2:30518"
+url_app_service = "add your url app service address here"
 
 # Kubernetes command wrapper
 KUBECTL_CMD = "microk8s kubectl"
@@ -470,10 +470,10 @@ def main():
             model.save(os.path.join(ckpt_dir, "final_model.zip"))
             try:
                 env.save(os.path.join(ckpt_dir, "vecnorm.pkl"))
-                logging.info("✅ VecNormalize state saved successfully.")
+                logging.info("VecNormalize state saved successfully.")
             except Exception as e:
-                logging.warning(f"⚠️ VecNormalize save failed: {e}")
-            logging.info(f"✅ Training complete or interrupted for '{selected_profile}'.")
+                logging.warning(f"VecNormalize save failed: {e}")
+            logging.info(f"Training complete or interrupted for '{selected_profile}'.")
 
     elif args.mode == "test":
         from stable_baselines3.common.logger import configure as configure_logger
@@ -484,7 +484,7 @@ def main():
         vecnorm_path = os.path.join(ckpt_dir, "vecnorm.pkl")
 
         if not os.path.exists(model_path):
-            logging.error(f"❌ Model not found at {model_path}. Train it first.")
+            logging.error(f"Model not found at {model_path}. Train it first.")
             sys.exit(1)
 
         def make_env_test():
@@ -497,7 +497,7 @@ def main():
             env.training = False
             env.norm_reward = False
         except Exception as e:
-            logging.warning(f"⚠️ VecNormalize not found or failed to load: {e}")
+            logging.warning(f"VecNormalize not found or failed to load: {e}")
 
         device = "cuda" if torch.cuda.is_available() else "cpu"
         logging.info(f"Using device: {device.upper()}")
@@ -513,7 +513,7 @@ def main():
         csv_path = os.path.join(test_dir, f"{selected_profile}_test_run.csv")
 
         total_steps = len(test_days) * columns
-        logging.info(f"▶ Starting test run ({total_steps} steps)...")
+        logging.info(f"Starting test run ({total_steps} steps)...")
 
         with open(csv_path, "w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=[
@@ -575,7 +575,7 @@ def main():
                 if done[0]:
                     break
 
-        logging.info(f"✅ Test complete. Results saved at {csv_path}")
+        logging.info(f"Test complete. Results saved at {csv_path}")
 
 
 if __name__ == "__main__":
