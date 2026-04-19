@@ -383,7 +383,7 @@ class MultiObjectiveLoggingCallback(BaseCallback):
     def _on_training_start(self):
         self.csv_file = open(self.csv_path, "w", newline="")
         headers = ["timestep", "r_perf", "r_cost", "r_energy", "latency", "replicas", "avg_cpu_percent", "ram_usage",
-                   "num_requests", "total_cpu_m", "total_ram_mi", "success_ratio", "deployment_power_watts", "hpa_target"]
+                   "num_requests", "total_cpu_m", "total_ram_mi", "success_ratio", "pod_power", "hpa_target"]
         self.csv_writer = csv.DictWriter(self.csv_file, fieldnames=headers)
         self.csv_writer.writeheader()
 
@@ -410,7 +410,7 @@ class MultiObjectiveLoggingCallback(BaseCallback):
                 "r_energy": reward_vector[2], "latency": state[0], "replicas": state[1],
                 "avg_cpu_percent": state[2], "ram_usage": state[3], "num_requests": state[4],
                 "total_cpu_m": state[5], "total_ram_mi": state[6], "success_ratio": state[7],
-                "deployment_power_watts": float(state[14]), "hpa_target": state[8]
+                "pod_power": float(state[14]), "hpa_target": state[8]
             })
             logging.info(f"Step: {self.num_timesteps:<5} | Policy: {self.policy_name:<15} | "
                          f"Reward: [{reward_vector[0]:>5.2f},{reward_vector[1]:>5.2f},{reward_vector[2]:>5.2f}] | "
@@ -560,7 +560,7 @@ def main():
             writer = csv.DictWriter(f, fieldnames=[
                 "timestep", "r_perf", "r_cost", "r_energy", "latency", "success_ratio",
                 "replicas", "avg_cpu_percent", "total_cpu_m", "total_ram_mi",
-                "deployment_power_watts", "hpa_target", "reward_scalar"
+                "pod_power", "hpa_target", "reward_scalar"
             ])
             writer.writeheader()
 
