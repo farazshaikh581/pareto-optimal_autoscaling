@@ -1,5 +1,5 @@
-# Pareto-Optimal Autoscaling ⚖️🔋
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+# Pareto-Optimal Autoscaling
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Environment: MicroK8s](https://img.shields.io/badge/kubernetes-microk8s-326ce5.svg)](https://microk8s.io/)
 [![RL: StableBaselines3](https://img.shields.io/badge/rl-stable--baselines3-brightgreen)](https://stable-baselines3.readthedocs.io/en/master/)
