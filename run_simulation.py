@@ -218,7 +218,7 @@ class KubernetesEnv(gym.Env):
 
         except Exception as e:
             logging.warning(f"Metric collection failed: {e}")
-            return 1, 0, 0, 0, 0, 0
+            return 1, 0, 0, 0, 0, 0, 0
 
         return replicas, avg_cpu_percent, 0, total_cpu_m, total_ram_mi, total_pod_power, node_power
 
@@ -321,7 +321,7 @@ class KubernetesEnv(gym.Env):
         """Main step logic for Gymnasium API"""
         self.apply_action(action)
         num_req, latency, success_ratio = self._run_hey()
-        replicas, cpu_usage, ram_usage, total_cpu, total_ram, total_pod_power = self._get_k8s_metrics()
+        replicas, cpu_usage, ram_usage, total_cpu, total_ram, total_pod_power, _ = self._get_k8s_metrics()
         angle = (self.steps / self.minutes_per_day) * (2 * math.pi)
         forecast = 0.0
 
