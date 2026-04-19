@@ -35,9 +35,16 @@ import energy_model
 # --- Basic Setup ---
 warnings.filterwarnings("ignore", category=UserWarning)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-np.random.seed(42)
-random.seed(42)
-torch.manual_seed(42)
+
+def set_seed(seed: int):
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
 # --- Environment Configuration ---
 application = "factorizator"
@@ -422,8 +429,11 @@ def main():
                         help="Run mode: train or test")
     parser.add_argument("--profile", choices=["perf_focused", "cost_focused", "energy_focused", "balanced"],
                         default="perf_focused", help="Profile to train/test")
+    parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
     parser.add_argument("--beta2", type=float, default=None, help="Override energy reward weight (optional)")
     args = parser.parse_args()
+
+    set_seed(args.seed)
 
     invocation_file = "AzureFunctionsInvocationTraceForTwoWeeksJan2021.txt"
     try:
@@ -432,7 +442,7 @@ def main():
         df_full['end_timestamp'] = pd.to_numeric(df_full['end_timestamp'], errors='coerce')
         df_full.dropna(subset=['end_timestamp'], inplace=True)
         df_full = add_day_column(df_full, minutes_per_day=columns)
-        train_days, test_days = get_random_days(df_full, n_days=4, train_days=3, test_days=1)
+        train_days, test_days = get_random_days(df_full, n_days=4, train_days=3, test_days=1, seed=args.seed)
         logging.info(f"Train days: {train_days}, Test days: {test_days}")
     except Exception as e:
         logging.error(f"Error loading trace file: {e}")
@@ -461,6 +471,7 @@ def main():
             return LinearReward(mo_env, weight=weights)
 
         env = DummyVecEnv([make_env])
+        env.seed(args.seed)
         env = VecNormalize(env, norm_obs=True, norm_reward=True, clip_obs=10.0)
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -469,7 +480,7 @@ def main():
             n_steps=256, batch_size=64, ent_coef=0.01,
             gamma=0.99, gae_lambda=0.93, learning_rate=lr_schedule,
             verbose=0, tensorboard_log=f"./results/tb/{selected_profile}",
-            device=device
+            device=device, seed=args.seed
         )
 
         ckpt_dir, log_dir = f"./results/checkpoints/{selected_profile}", "./results/logs"
@@ -521,6 +532,7 @@ def main():
             return LinearReward(mo_env, weight=weights)
 
         env = DummyVecEnv([make_env_test])
+        env.seed(args.seed)
         try:
             env = VecNormalize.load(vecnorm_path, env)
             env.training = False

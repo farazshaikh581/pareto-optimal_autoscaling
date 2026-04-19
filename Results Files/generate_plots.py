@@ -1,0 +1,262 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import os
+from mpl_toolkits.mplot3d import Axes3D
+
+# --- Configuration ---
+FILE_PATHS = {
+    'cost_test': 'cost_focused_test_run.csv',  # Fixed name to match test files correctly
+    'cost_train': 'cost_focused_train.csv',
+    'energy_test': 'energy_focused_test_run.csv',
+    'energy_train': 'energy_focused_train.csv',
+    'perf_test': 'perf_focused_test_run.csv',
+    'perf_train': 'perf_focused_train.csv',
+    'balanced_test': 'balanced_test_run.csv',
+    'balanced_train': 'balanced_train.csv'
+}
+TRAIN_ROWS_LIMIT = 1080
+ROLLING_WINDOW_SIZE = 50
+FIGURES_DIR = 'figures'
+
+# --- Global Style Settings for Publication (BOLD & READABLE) ---
+plt.rcParams.update({
+    'font.weight': 'bold',           # Bold text everywhere
+    'axes.labelweight': 'bold',      # Bold axis labels
+    'axes.titleweight': 'bold',      # Bold titles
+    'axes.titlesize': 20,
+    'axes.labelsize': 18,
+    'xtick.labelsize': 16,
+    'ytick.labelsize': 16,
+    'legend.fontsize': 16,
+    'legend.title_fontsize': 18,
+    'figure.titlesize': 24,
+    'lines.linewidth': 3,            # Thicker lines globally
+    'axes.linewidth': 2              # Thicker axis spines
+})
+
+# --- Data Loading (Unchanged) ---
+def load_and_prepare_data():
+    all_dataframes = []
+    if not os.path.exists(FIGURES_DIR):
+        os.makedirs(FIGURES_DIR)
+
+    for key, path in FILE_PATHS.items():
+        if not os.path.exists(path):
+            print(f"Warning: File not found at {path}. Skipping...")
+            continue
+        try:
+            df = pd.read_csv(path)
+            if 'cost' in key: df['profile'] = 'Cost Focused'
+            elif 'energy' in key: df['profile'] = 'Energy Focused'
+            elif 'perf' in key: df['profile'] = 'Performance Focused'
+            elif 'balanced' in key: df['profile'] = 'Balanced Focused'
+            else: df['profile'] = 'Unknown'
+
+            if 'train' in key:
+                df['run_type'] = 'Train'
+                df = df.head(TRAIN_ROWS_LIMIT)
+            else:
+                df['run_type'] = 'Test'
+            all_dataframes.append(df)
+        except Exception as e:
+            print(f"Error loading {path}: {e}")
+
+    if not all_dataframes: return None, None, None
+
+    all_data = pd.concat(all_dataframes, ignore_index=True)
+    all_train_data = all_data[all_data['run_type'] == 'Train'].copy()
+    all_test_data = all_data[all_data['run_type'] == 'Test'].copy()
+    all_train_data['timestep'] = pd.to_numeric(all_train_data['timestep'], errors='coerce')
+
+    return all_data, all_train_data, all_test_data
+
+# --- Plotting Functions ---
+
+def plot_test_reward_comparison(test_data):
+    if 'reward_scalar' not in test_data.columns: return
+
+    plt.figure(figsize=(12, 8))
+    sns.boxplot(data=test_data, x='profile', y='reward_scalar', palette='Set2', hue='profile', legend=False, linewidth=3)
+    plt.title('Test Run Final Reward Comparison', pad=20)
+    plt.xlabel('Agent Profile', labelpad=15)
+    plt.ylabel('Reward Scalar', labelpad=15)
+    plt.grid(axis='y', linestyle='--', alpha=0.5, linewidth=1.5)
+    plt.tight_layout()
+    plt.savefig(os.path.join(FIGURES_DIR, 'fig_1_test_reward.png'), dpi=600)
+    print("Generated Plot 1")
+
+def plot_test_kpi_comparison(test_data):
+    # Balanced aspect ratio
+    fig, axes = plt.subplots(3, 1, figsize=(14, 15), constrained_layout=True)
+
+    kpis = [('latency', 'Latency (s)', 'viridis'),
+            ('replicas', 'Number of Replicas', 'plasma'),
+            ('pod_power', 'Pod Power (Watts)', 'cividis')]
+    titles = ['Latency (Lower is Better)', 'Replica Count (Lower is Cheaper)', 'Pod Power (Lower is Greener)']
+
+    for i, (kpi, ylabel, palette) in enumerate(kpis):
+        if kpi in test_data.columns:
+            # 1. Boxplot: Thicker lines for visibility
+            sns.boxplot(data=test_data, x='profile', y=kpi, ax=axes[i],
+                        palette=palette, hue='profile', legend=False, linewidth=2.5)
+
+            # 2. Stripplot (The Markers):
+            # Changed color to 'white' with black edge. This fixes the "too dark" issue.
+            sns.stripplot(data=test_data, x='profile', y=kpi, ax=axes[i],
+                          color='white',      # White interior
+                          edgecolor='black',  # Black outline
+                          linewidth=1.2,      # Thicker outline
+                          s=6,                # Good size
+                          alpha=0.8,          # Slight transparency
+                          jitter=0.25)
+
+            axes[i].set_title(titles[i], pad=10)
+            axes[i].set_ylabel(ylabel, labelpad=15)
+
+            # Clean x-axis
+            if i < 2:
+                axes[i].set_xlabel('')
+                axes[i].tick_params(labelbottom=False)
+            else:
+                axes[i].set_xlabel('Agent Profile', labelpad=15)
+
+            # Darker grid for better visibility
+            axes[i].grid(axis='y', linestyle='--', alpha=0.7, linewidth=1.5)
+
+    plt.savefig(os.path.join(FIGURES_DIR, 'fig_2_test_kpi_comparison.png'), dpi=600, bbox_inches='tight')
+    print("Generated Plot 2 (High Contrast Markers)")
+
+def plot_train_reward_components(train_data):
+    if train_data.empty: return
+
+    # UPDATED: Reduced height from 20 to 12
+    fig, axes = plt.subplots(3, 1, figsize=(16, 12), sharex=True)
+
+    components = [('r_perf', 'Performance Reward'), ('r_cost', 'Cost Reward'), ('r_energy', 'Energy Reward')]
+    profiles = sorted(train_data['profile'].unique())
+    colors = sns.color_palette("bright", n_colors=len(profiles))
+    profile_color_map = dict(zip(profiles, colors))
+
+    for i, (comp, title) in enumerate(components):
+        if comp in train_data.columns:
+            for profile in profiles:
+                subset = train_data[train_data['profile'] == profile].sort_values('timestep').reset_index(drop=True)
+                if not subset.empty:
+                    rm = subset[comp].rolling(ROLLING_WINDOW_SIZE).mean()
+                    axes[i].plot(subset.index, rm, label=profile, color=profile_color_map[profile], linewidth=4) # Very thick lines
+
+            axes[i].set_title(title, pad=15)
+            axes[i].set_ylabel('Reward (Avg)', labelpad=15)
+            axes[i].grid(True, linestyle='--', alpha=0.6, linewidth=1.5)
+
+    axes[2].set_xlabel('Training Timestep', labelpad=15)
+
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, 1.05), ncol=4, frameon=False)
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(FIGURES_DIR, 'fig_3_training_rewards.png'), dpi=600, bbox_inches='tight')
+    print("Generated Plot 3 (Compacted)")
+
+def plot_kpi_distributions(all_data):
+    # UPDATED: Reduced height significantly (was 14,24 -> now 16,10)
+    fig, axes = plt.subplots(3, 1, figsize=(14, 13))
+
+    kpis = [('latency', 'Latency (s)'), ('replicas', 'Replicas'), ('pod_power', 'Power (W)')]
+
+    for i, (kpi, ylabel) in enumerate(kpis):
+        if kpi in all_data.columns:
+            # Thicker lines for the violin outline and quartiles
+            sns.violinplot(data=all_data, x='profile', y=kpi, hue='run_type', split=True,
+                         ax=axes[i], palette='muted', inner='quartile', linewidth=3)
+
+            axes[i].set_ylabel(ylabel, labelpad=15)
+            axes[i].grid(axis='y', linestyle='--', alpha=0.5, linewidth=1.5)
+
+            # Clean up x-axis labels
+            if i < 2:
+                axes[i].set_xlabel('')
+                axes[i].tick_params(labelbottom=False) # Hide ticks on upper plots
+            else:
+                axes[i].set_xlabel('Agent Profile', labelpad=15)
+
+            # Only show legend on top plot
+            if i == 0:
+                axes[i].legend(loc='upper right', title='Run Type', framealpha=0.9)
+            else:
+                if axes[i].get_legend(): axes[i].get_legend().remove()
+
+    plt.tight_layout(pad=1.5)
+    plt.savefig(os.path.join(FIGURES_DIR, 'fig_4_kpi_distributions.png'), dpi=600)
+    print("Generated Plot 4 (Height Corrected)")
+
+def plot_3d_pareto_front(test_data):
+    if not {'latency', 'replicas', 'pod_power'}.issubset(test_data.columns):
+        return
+
+    # --- THIS IS THE FIX ---
+    # Made figure wider to ensure legend fits outside
+    fig = plt.figure(figsize=(14, 10))
+    # ----------------------
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Define distinct colors and markers
+    profile_map = {
+        'Performance Focused': ('red', 'o'),
+        'Balanced Focused': ('purple', 'D'),
+        'Cost Focused': ('blue', 's'),
+        'Energy Focused': ('green', '^')
+    }
+
+    for profile, (color, marker) in profile_map.items():
+        profile_data = test_data[test_data['profile'] == profile]
+        if not profile_data.empty:
+            ax.scatter(
+                profile_data['latency'],
+                profile_data['replicas'],
+                profile_data['pod_power'],
+                label=profile,
+                c=color,
+                marker=marker,
+                s=40, # Reduced marker size from 120 to 40
+                alpha=0.5,
+                edgecolor='k',
+                linewidth=0.5
+            )
+
+    ax.set_title('Fig 5: 3D Pareto Front Visualization (Test Data)', fontsize=16, fontweight='bold')
+    ax.set_xlabel('Latency (s) [Lower is Better]', fontsize=12, fontweight='bold', labelpad=10)
+    ax.set_ylabel('Replicas (Cost) [Lower is Better]', fontsize=12, fontweight='bold', labelpad=10)
+    ax.set_zlabel('Pod Power (W) [Lower is Better]', fontsize=12, fontweight='bold', labelpad=10)
+
+    # --- THIS IS THE FIX ---
+    # Move legend OUTSIDE the plot area to guarantee no overlap
+    ax.legend(fontsize=12, title="Agent Profile", loc='center left', bbox_to_anchor=(1.05, 0.8))
+    # ----------------------
+
+    ax.view_init(elev=20, azim=45) # Consistent viewing angle, adjusted for better visibility
+
+    # --- THIS IS THE FIX ---
+    # Adjust layout to make room for the external legend
+    plt.tight_layout(rect=[0, 0, 0.9, 1]) # Added rect to leave 10% space on the right for legend
+    # ----------------------
+
+    plt.savefig(os.path.join(FIGURES_DIR, 'fig_5_3d_pareto_front.png'), dpi=600)
+    print("Generated Plot 5 (Zoomed Out to Fix Labels)")
+
+def main():
+    sns.set_style("whitegrid")
+    all_data, all_train, all_test = load_and_prepare_data()
+
+    if all_data is not None:
+        plot_test_reward_comparison(all_test)
+        plot_test_kpi_comparison(all_test)
+        plot_train_reward_components(all_train)
+        plot_kpi_distributions(all_data)
+        plot_3d_pareto_front(all_test)
+
+        print("\nAll figures generated in 'figures/' folder.")
+
+if __name__ == "__main__":
+    main()
